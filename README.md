@@ -11,3 +11,5 @@ temperature values for a given year, the plot should display mean(Tm) and also m
 
 o Ability to zoom around a center value, using custom MATLAB uicontrols and not the built-in zoom/pan interactions.The UI could offer an edit control where 
 the user can type a year of interest (around which to zoom) and a slider which could change the zoom, keeping the year of interest centered in the plot.
+
+  ![image](https://github.com/user-attachments/assets/ceb85f84-89da-49ef-b8b0-cf9243f0b7f5)
