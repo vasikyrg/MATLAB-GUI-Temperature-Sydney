@@ -14,4 +14,6 @@ the user can type a year of interest (around which to zoom) and a slider which c
 
   ![image](https://github.com/user-attachments/assets/ceb85f84-89da-49ef-b8b0-cf9243f0b7f5)
 
-Version II: Cleaner Code and Select Unit for the user in order to change the unit from Fahrenheit to Celsius.
+Version II: The new code provides a cleaner code, more functionallities for the standard_deviation plot (text labels in the graph in order to get easily the std, 
+upper bound, lower bound and the temperature), a code for "zoom function" that centers the year and the annual temperature of it and finally a selection unit that 
+change the temperature's unit from celsius to fahrenheit.
