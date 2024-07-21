@@ -1,4 +1,4 @@
-classdef assignment1 < matlab.apps.AppBase
+classdef assignment21 < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -27,6 +27,8 @@ classdef assignment1 < matlab.apps.AppBase
         SelectMonthandseethepresstheLoadDataLabel  matlab.ui.control.Label
         ResetFigureButton_2       matlab.ui.control.Button
         ResetFigureButton         matlab.ui.control.Button
+        UnitSwitchLabel           matlab.ui.control.Label
+        UnitSwitch                matlab.ui.control.Switch
         StandardDeviationTab      matlab.ui.container.Tab
         UIAxes3                   matlab.ui.control.UIAxes
         LoadDataButton_3          matlab.ui.control.Button
@@ -40,22 +42,12 @@ classdef assignment1 < matlab.apps.AppBase
 
     
     properties (Access = private)
-         %% Load Data From CSV File
-            %% Load Data From CSV File
-            year = readtable('IDCJAC0002_066062_Data12.csv').Year;
-            jan = readtable('IDCJAC0002_066062_Data12.csv').Jan;
-            feb = readtable('IDCJAC0002_066062_Data12.csv').Feb;
-            mar = readtable('IDCJAC0002_066062_Data12.csv').Mar;
-            apr = readtable('IDCJAC0002_066062_Data12.csv').Apr;
-            may = readtable('IDCJAC0002_066062_Data12.csv').May;
-            jun = readtable('IDCJAC0002_066062_Data12.csv').Jun;
-            jul = readtable('IDCJAC0002_066062_Data12.csv').Jul;
-            aug = readtable('IDCJAC0002_066062_Data12.csv').Aug;
-            sep = readtable('IDCJAC0002_066062_Data12.csv').Sep;
-            oct = readtable('IDCJAC0002_066062_Data12.csv').Oct;
-            nov = readtable('IDCJAC0002_066062_Data12.csv').Nov;
-            dec = readtable('IDCJAC0002_066062_Data12.csv').Dec;
-            annual = readtable('IDCJAC0002_066062_Data12.csv').Annual;
+            %% Fahrenheit or Celsius
+            dataCelsius
+            dataFahrenheit
+            currentUnit = 'Celsius'
+            year
+            annual
             %% Other 
             common_xlim2
             common_ylim2
@@ -65,17 +57,112 @@ classdef assignment1 < matlab.apps.AppBase
             common_ylim3
             upper_bound
             lower_bound
-            original_x3
-            original_y3
-            original_x2
-            original_y2
-            original_x
-            original_y
             isenabled3
             isenabled2
             isenabled
-            average_per_year
             
+    end
+    
+    methods (Access = private)
+        
+        function fahrenheit = convertToFahrenheit(~, celsius)
+            fahrenheit = celsius * 9/5 + 32;
+        end
+        function monthIndex = getMonthIndex(~, monthName)
+            months = {'January', 'February', 'March', 'April', 'May', 'June', ...
+                      'July', 'August', 'September', 'October', 'November', 'December'};
+            monthIndex = find(strcmp(months, monthName));
+            if isempty(monthIndex)
+                monthIndex = -1; % Return -1 if monthName not found
+            end
+        end
+        function data = getDataForCurrentUnit(app, monthIndex)
+            if strcmp(app.currentUnit, 'Celsius')
+                data = app.dataCelsius(:, monthIndex);
+            else
+                data = app.dataFahrenheit(:, monthIndex);
+                
+            end
+         end
+        function data = getData(app)
+            if strcmp(app.currentUnit, 'Celsius')
+                data = app.dataCelsius();
+            else
+                data = app.dataFahrenheit();
+                app.annual = app.convertToFahrenheit(app.annual);
+            end
+        end
+        function applyZoom(~, zoomPercentage, ax, com_xlim, com_ylim, centered_year, interest_year, interest_yeary)
+            % Get current axis limits
+            xLimits = com_xlim;
+            yLimits = com_ylim;
+
+            % Calculate the current range
+            xRange = xLimits(2) - xLimits(1);
+            yRange = yLimits(2) - yLimits(1);
+
+            % Calculate the new axis limits
+            newXRange = xRange / zoomPercentage;
+            newYRange = yRange / zoomPercentage;
+            if centered_year == true
+                % Use the centered year as the center
+                xCenter = interest_year;
+                yCenter = interest_yeary;
+            else
+                % Use the centered year as the center
+                xCenter = (xLimits(2) + xLimits(1)) / 2;
+                yCenter = (yLimits(2) + yLimits(1)) / 2;
+                
+            end
+            % Calculate the new limits ensuring the second element is greater than the first
+                newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
+                newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
+    
+                % Set the new axis limits
+                ax.XLim = newXLim;
+                ax.YLim = newYLim;
+            
+            % Ensure new limits do not exceed original limits
+            if newXLim(1) < com_xlim(1)
+                ax.XLim = com_xlim;
+            end
+            if newYLim(1) < com_ylim(1)
+                ax.YLim = com_ylim;
+            end
+            
+        end
+        function updateMousePosition(app, ~, ~)
+            % Get current mouse position
+            currentPoint = app.UIAxes3.CurrentPoint;
+            mouseX = currentPoint(1,1);
+            mouseY = currentPoint(1,2);
+            
+            % Get plot limits
+            xLimits = get(app.UIAxes3, 'XLim');
+            yLimits = get(app.UIAxes3, 'YLim');
+            
+            % Check if the mouse is inside the plot area
+            if mouseX >= xLimits(1) && mouseX <= xLimits(2) && mouseY >= yLimits(1) && mouseY <= yLimits(2)
+                % Find the closest year in the data based on mouseX
+                [~, index] = min(abs(app.year - mouseX));
+                selectedYear = app.year(index);
+                selectedTemperature = app.annual(index);
+                upper_bound_selected = app.upper_bound(index);
+                lower_bound_selected = app.lower_bound(index);
+
+                % Clear existing text annotations
+                delete(findall(app.UIAxes3, 'Type', 'text'));
+                
+                % Display the information on the plot
+                text(app.UIAxes3, selectedYear, selectedTemperature, ...
+                    sprintf('Year: %d\nTemp: %.2f\nRange: %.2f - %.2f', ...
+                    selectedYear, selectedTemperature, upper_bound_selected, lower_bound_selected), ...
+                    'BackgroundColor', 'White', 'EdgeColor', 'blue');
+            else
+                % If mouse is outside, clear text annotations (optional)
+                delete(findall(app.UIAxes3, 'Type', 'text'));
+            end
+        end
     end
     
 
@@ -84,135 +171,40 @@ classdef assignment1 < matlab.apps.AppBase
 
         % Code that executes after component creation
         function startupFcn(app)
-            
+              data = readtable('IDCJAC0002_066062_Data12.csv');
+              app.dataCelsius = data{:, 4:15};
+              app.annual = data.Annual;
+              app.year = data.Year;
+              app.dataFahrenheit = app.convertToFahrenheit(app.dataCelsius);
+              app.SelectMonthDropDown.Value = 'January';
+              
         end
 
         % Button pushed function: LoadDataButton
         function LoadDataButtonPushed(app, event)
-            %% DropDown Menu
-            SelectUnitSwitchValueChanged(app, event)
-            switch app.SelectMonthDropDown.Value
-                case 'January'
-                    plot(app.UIAxes,app.year,app.jan);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'January');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'February'
-                    plot(app.UIAxes,app.year,app.feb);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'February');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'March'
-                    plot(app.UIAxes,app.year,app.mar);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'March');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'April'
-                    plot(app.UIAxes,app.year,app.apr);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'April');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'May'
-                    plot(app.UIAxes,app.year,app.may);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'May');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'June'
-                    plot(app.UIAxes,app.year,app.jun);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'June');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'July'
-                    plot(app.UIAxes,app.year,app.jul);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'July');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off';
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'August'
-                    plot(app.UIAxes,app.year,app.aug);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'August');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'September'
-                    plot(app.UIAxes,app.year,app.sep);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'September');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'October'
-                    plot(app.UIAxes,app.year,app.oct);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'October');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'November'
-                    plot(app.UIAxes,app.year,app.nov);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'November');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                case 'December'
-                    plot(app.UIAxes,app.year,app.dec);
-                    xlabel(app.UIAxes,'Year');
-                    ylabel(app.UIAxes,'December');
-                    xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
-                    disableDefaultInteractivity(app.UIAxes)
-                    app.UIAxes.Toolbar.Visible = 'off'; 
-                    app.common_ylim = get(app.UIAxes, 'YLim');
-                    app.common_xlim = get(app.UIAxes, 'XLim');
-                    
-            end
+            
+            selectedMonth = app.SelectMonthDropDown.Value;
+            monthIndex = app.getMonthIndex(selectedMonth);
+            data = app.getDataForCurrentUnit(monthIndex);
+            
+            plot(app.UIAxes, app.year, data);
+            xlabel(app.UIAxes,'Year');
+            ylabel(app.UIAxes, selectedMonth);
+            xlim(app.UIAxes, [app.year(1), app.year(length(app.year))]);
+            
+            disableDefaultInteractivity(app.UIAxes)
+            app.UIAxes.Toolbar.Visible = 'off'; 
+            app.common_ylim = get(app.UIAxes, 'YLim');
+            app.common_xlim = get(app.UIAxes, 'XLim');
+            
         end
 
         % Button pushed function: LoadDataButton_2
         function LoadDataButton_2Pushed(app, event)
             %% Find the average
-            app.average_per_year = zeros(150,1);
-            for i=1:1:length(app.year)
-                app.average_per_year(i) = (app.jan(i) + app.feb(i) + app.mar(i) + app.apr(i) + app.may(i) + app.jun(i)+app.jul(i)+app.aug(i) ...
-                    +app.sep(i)+app.oct(i)+app.nov(i)+app.dec(i))/12;
-            end
-           plot(app.UIAxes2,app.year,app.average_per_year);
+           app.startupFcn();
+           average_per_year = mean(app.getData, 2);
+           plot(app.UIAxes2,app.year,average_per_year);
            xlabel(app.UIAxes2,'Year');
            ylabel(app.UIAxes2,'Average Temperature');
            xlim(app.UIAxes2, [app.year(1), app.year(length(app.year))]);
@@ -224,7 +216,7 @@ classdef assignment1 < matlab.apps.AppBase
 
         % Callback function
         function SelectUnitSwitchValueChanged(app, event)
-              
+               
         end
 
         % Callback function: UIAxes3
@@ -234,69 +226,33 @@ classdef assignment1 < matlab.apps.AppBase
 
         % Button pushed function: LoadDataButton_3
         function LoadDataButton_3Pushed(app, event)
-           months_temp = [app.jan app.feb app.mar app.apr app.may app.jun app.jul app.aug app.sep app.oct app.nov app.dec];
-
-           std_per_year = zeros(size(app.year));
- 
-            for i=1:1:length(app.year)
-                % mean_per_year(i) = mean(app.annual(i));
-                std_per_year(i) = std(months_temp(i,:),0,2);
-            end
-           plot(app.UIAxes3, app.year, app.annual, '-o', 'LineWidth', 2, 'DisplayName', 'Mean Tm');
-           hold(app.UIAxes3, 'on');
+           std_per_year = std(app.getData,0,2);
            app.upper_bound = app.annual + std_per_year;
            app.lower_bound = app.annual - std_per_year;
-           % Exclude the last values
-           % Plot mean ± 1 standard deviation
+           
+           plot(app.UIAxes3, app.year, app.annual, '-o', 'LineWidth', 2, 'DisplayName', 'Mean Tm');
+           hold(app.UIAxes3, 'on');
+           
            plot(app.UIAxes3, app.year, app.annual + std_per_year, '-', 'Color', 'b', 'LineWidth', 1, 'DisplayName', 'Mean Tm + 1\sigma');
            hold(app.UIAxes3,'on');
+           
            plot(app.UIAxes3, app.year, app.annual - std_per_year, '-', 'Color', 'b', 'LineWidth', 1, 'DisplayName', 'Mean Tm - 1\sigma');
            fill(app.UIAxes3,[app.year; flip(app.year)], [app.upper_bound; flip(app.lower_bound)], 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'none', 'DisplayName', 'Area Between');
+           
            title(app.UIAxes3,'Mean Yearly Temperatures');
            xlabel(app.UIAxes3, 'Years');
            ylabel(app.UIAxes3, 'Mean Temperature');
            xlim(app.UIAxes3, [app.year(1), app.year(length(app.year))]);
            legend(app.UIAxes3, 'show', 'Location', 'best');
            hold(app.UIAxes3, 'off'); 
+           
            disableDefaultInteractivity(app.UIAxes3)
            app.UIAxes3.Toolbar.Visible = 'off'; 
            app.common_ylim3 = get(app.UIAxes3, 'YLim');
            app.common_xlim3 = get(app.UIAxes3, 'XLim');
-%            % Get current mouse position
-%         currentPoint = app.UIAxes.CurrentPoint;
-%         mouseX = currentPoint(1,1);
-%         mouseY = currentPoint(1,2);
-%         [~, index] = min(abs(app.year - mouseX));
-%         selectedYear = app.year(index);
-%         selectedTemperature = app.annual(index);
-%         % Calculate upper and lower bounds for the selected year
-% upper_bound_selected = app.annual(index) + std_per_year(index);
-% lower_bound_selected = app.annual(index) - std_per_year(index);
-% 
-% % Display the range (mean ± 1 standard deviation) for the selected year
-% 
-%         set(app.YearEditField, 'Value', int32(selectedYear))
-%         set(app.TemperatureEditField, 'Value', selectedTemperature)
-%         range_text = sprintf('%.2f - %.2f', upper_bound_selected, lower_bound_selected);
-%         set(app.RangeEditField, 'Value', range_text);
-% 
-%         % % Extract X coordinate (representing year)
-%         % 
-%         % 
-%         % % Find the closest year in the data based on mouseX
-%         % [~, index] = min(abs(app.year - mouseX));
-%         % selectedYear = app.year(index);
-%         % selectedTemperature = app.(index);
-%         % if isInAxes
-%         %         set(app.YearEditField, 'Value',...
-%         %             sprintf('%.2f', selectedYear))
-%         %         set(app.TemperatureEditField, 'Value',...
-%         %             sprintf('%.2f', selectedTemperature))
-%         %         set(app.RangeEditField, 'Value',...
-%         %             sprintf('%.2f - %.2f', selectedYear))
-%         % else
-%         %         set(app.CurrentPositionEditField, 'Value', '')
-%         % end
+           
+           % Set the WindowButtonMotionFcn callback to update mouse position
+           app.UIFigure.WindowButtonMotionFcn = @(src, event) updateMousePosition(app, src, event);
         end
 
         % Button pushed function: FindYearButton_2
@@ -305,70 +261,35 @@ classdef assignment1 < matlab.apps.AppBase
             for i=1:1:length(app.year)
                 if app.YearEditField_2.Value == app.year(i)
                     if app.YearEditField_2.Value == app.year(end)
-                        app.common_xlim2 = [app.year(i-1), app.year(i)]; % Set x-axis limits to min and max of original signal 
+                        app.common_xlim2 = [app.year(i-1), app.year(i)]; 
                     elseif app.YearEditField_2.Value == app.year(1)
-                        app.common_xlim2 = [app.year(i), app.year(i+1)]; % Set x-axis limits to min and max of original signal 
+                        app.common_xlim2 = [app.year(i), app.year(i+1)];  
                     else
-                        app.common_xlim2 = [app.year(i-1), app.year(i+1)]; % Set x-axis limits to min and max of original signal 
+                        app.common_xlim2 = [app.year(i-1), app.year(i+1)]; 
                     end 
                     set(app.UIAxes2, 'XLim', app.common_xlim2);
-                    app.original_x2 = get(app.UIAxes2,'XLim');
-                    app.original_y2 = get(app.UIAxes2,'YLim');
                 end
             end
         end
 
         % Button pushed function: ResetFigureButton_2
         function ResetFigureButton_2Pushed(app, event)
-            app.common_xlim2 = [app.year(1), app.year(end)]; % Set x-axis limits to min and max of original signal 
-            app.common_ylim2 = [app.average_per_year(1), app.average_per_year(end)];
-            set(app.UIAxes2, 'XLim', app.common_xlim2);
-            set(app.UIAxes2, 'YLim', app.common_ylim2);
-            app.common_ylim2 = get(app.UIAxes2, 'YLim');
-            app.isenabled2 = false;
+            app.LoadDataButton_2Pushed();
         end
 
         % Value changing function: ZoomSlider_2
         function ZoomSlider_2ValueChanging(app, event)
             zoomPercentage = event.Value;
-            % Get current axis limits
-            xLimits = app.common_xlim2;
-            yLimits = app.common_ylim2;
-            % Calculate the current range
-            xRange = xLimits(2) - xLimits(1);
-            yRange = yLimits(2) - yLimits(1);
-            % Calculate the new axis limits
-            newXRange = xRange / zoomPercentage;
-            newYRange = yRange / zoomPercentage;
-            % Calculate the center of the current limits
-            xCenter = (xLimits(2) + xLimits(1)) / 2;
-            yCenter = (yLimits(2) + yLimits(1)) / 2;
-            % Calculate the new limits ensuring the second element is greater than the first
-            newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
-            newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
-            % Set the new axis limits centered around the center
-            app.UIAxes2.XLim = newXLim;
-            app.UIAxes2.YLim = newYLim;
-
-            if zoomPercentage == 0
-                if app.isenabled2
-                    set(app.UIAxes2, 'XLim', app.original_x2);
-                    set(app.UIAxes2, 'YLim', app.original_y2);
-                end
+            if app.isenabled2
+                app.applyZoom(zoomPercentage, app.UIAxes2, app.common_xlim2, app.common_ylim2, true, app.YearEditField_2.Value, interp1(app.year, mean(app.getData, 2), app.YearEditField_2.Value));
+            else
+                app.applyZoom(zoomPercentage, app.UIAxes2, app.common_xlim2, app.common_ylim2, false);
             end
-
-
-            
         end
 
         % Button pushed function: ResetFigureButton_3
         function ResetFigureButton_3Pushed(app, event)
-            app.common_xlim3 = [app.year(1), app.year(end)]; % Set x-axis limits to min and max of original signal 
-            app.common_ylim3 = [app.lower_bound(1), app.upper_bound(end)];
-            set(app.UIAxes3, 'XLim', app.common_xlim3);
-            set(app.UIAxes3, 'YLim', app.common_ylim3);
-            app.common_ylim3 = get(app.UIAxes3, 'YLim');
-            app.isenabled3 = false;
+            app.LoadDataButton_3Pushed();
         end
 
         % Button pushed function: FindYearButton_3
@@ -384,8 +305,6 @@ classdef assignment1 < matlab.apps.AppBase
                         app.common_xlim3 = [app.year(i-1), app.year(i+1)]; % Set x-axis limits to min and max of original signal 
                     end 
                     set(app.UIAxes3, 'XLim', app.common_xlim3);
-                    app.original_x3 = get(app.UIAxes3,'XLim');
-                    app.original_y3 = get(app.UIAxes3,'YLim');
                 end
             end
         end
@@ -393,30 +312,11 @@ classdef assignment1 < matlab.apps.AppBase
         % Value changing function: ZoomSlider_3
         function ZoomSlider_3ValueChanging(app, event)
             zoomPercentage = event.Value;
-            % Get current axis limits
-            xLimits = app.common_xlim3;
-            yLimits = app.common_ylim3;
-            % Calculate the current range
-            xRange = xLimits(2) - xLimits(1);
-            yRange = yLimits(2) - yLimits(1);
-            % Calculate the new axis limits
-            newXRange = xRange / zoomPercentage;
-            newYRange = yRange / zoomPercentage;
-            % Calculate the center of the current limits
-            xCenter = (xLimits(2) + xLimits(1)) / 2;
-            yCenter = (yLimits(2) + yLimits(1)) / 2;
-            % Calculate the new limits ensuring the second element is greater than the first
-            newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
-            newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
-            % Set the new axis limits centered around the center
-            app.UIAxes3.XLim = newXLim;
-            app.UIAxes3.YLim = newYLim;
-
-            if zoomPercentage == 0
-                if app.isenabled3
-                    set(app.UIAxes3, 'XLim', app.original_x3);
-                    set(app.UIAxes3, 'YLim', app.original_y3);
-                end
+            if app.isenabled3
+                std_per_year = std(app.getData,0,2);
+                app.applyZoom(zoomPercentage, app.UIAxes3, app.common_xlim3, app.common_ylim3, true, app.YearEditField_3.Value, interp1(app.year, std_per_year, app.YearEditField.Value));
+            else
+                app.applyZoom(zoomPercentage, app.UIAxes3, app.common_xlim3, app.common_ylim3, false);
             end
             
         end
@@ -440,58 +340,42 @@ classdef assignment1 < matlab.apps.AppBase
                         app.common_xlim = [app.year(i-1), app.year(i+1)]; % Set x-axis limits to min and max of original signal 
                     end 
                     set(app.UIAxes, 'XLim', app.common_xlim);
-                    app.original_x = get(app.UIAxes,'XLim');
-                    app.original_y = get(app.UIAxes,'YLim');
                 end
             end
         end
 
         % Button pushed function: ResetFigureButton
         function ResetFigureButtonPushed(app, event)
-            app.common_xlim = [app.year(1), app.year(end)]; % Set x-axis limits to min and max of original signal 
-            months = ['January','February', 'March', 'May', 'June', 'July', 'August', ...
-                'September', 'October', 'November', 'December'];
-            array_months = [app.jan, app.feb, app.mar, app.apr, app.may, app.jun, app.jul, app.aug ...
-                ,app.sep, app.oct, app.nov, app.dec];
-            for i = 1:length(months)
-                if app.SelectMonthDropDown.Value == months(i)
-                    app.common_ylim = [array_months{i}(1), array_months{i}(end)];
-                end
-            end
-            set(app.UIAxes, 'XLim', app.common_xlim);
-            set(app.UIAxes, 'YLim', app.common_ylim);
-            app.common_ylim = get(app.UIAxes, 'YLim');
-            app.isenabled = false;
+            app.LoadDataButtonPushed();
         end
 
         % Value changing function: ZoomSlider
         function ZoomSliderValueChanging(app, event)
             zoomPercentage = event.Value;
-            % Get current axis limits
-            xLimits = app.common_xlim;
-            yLimits = app.common_ylim;
-            % Calculate the current range
-            xRange = xLimits(2) - xLimits(1);
-            yRange = yLimits(2) - yLimits(1);
-            % Calculate the new axis limits
-            newXRange = xRange / zoomPercentage;
-            newYRange = yRange / zoomPercentage;
-            % Calculate the center of the current limits
-            xCenter = (xLimits(2) + xLimits(1)) / 2;
-            yCenter = (yLimits(2) + yLimits(1)) / 2;
-            % Calculate the new limits ensuring the second element is greater than the first
-            newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
-            newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
-            % Set the new axis limits centered around the center
-            app.UIAxes.XLim = newXLim;
-            app.UIAxes.YLim = newYLim;
-
-            if zoomPercentage == 0
-                if app.isenabled
-                    set(app.UIAxes, 'XLim', app.original_x);
-                    set(app.UIAxes, 'YLim', app.original_y);
-                end
+            if app.isenabled
+                selectedMonth = app.SelectMonthDropDown.Value;
+                monthIndex = app.getMonthIndex(selectedMonth);
+                data = app.getDataForCurrentUnit(monthIndex);
+                app.applyZoom(zoomPercentage, app.UIAxes, app.common_xlim, app.common_ylim, true, app.YearEditField.Value, interp1(app.year, data, app.YearEditField.Value));
+            else
+                app.applyZoom(zoomPercentage, app.UIAxes, app.common_xlim, app.common_ylim, false);
             end
+        end
+
+        % Value changed function: UnitSwitch
+        function UnitSwitchValueChanged(app, event)
+            value = app.UnitSwitch.Value;
+            
+            if strcmp(value, 'Fahrenheit') && strcmp(app.currentUnit, 'Celsius')
+                % Convert data to Fahrenheit
+                app.dataFahrenheit = app.convertToFahrenheit(app.dataCelsius);
+                app.currentUnit = 'Fahrenheit';
+            elseif strcmp(value, 'Celsius') && strcmp(app.currentUnit, 'Fahrenheit')
+                % Convert data back to Celsius
+                % No conversion needed here as we keep the original Celsius data
+                app.currentUnit = 'Celsius';
+            end
+            
         end
     end
 
@@ -654,6 +538,19 @@ classdef assignment1 < matlab.apps.AppBase
             app.ResetFigureButton.Position = [524 281 100 22];
             app.ResetFigureButton.Text = 'Reset Figure';
 
+            % Create UnitSwitchLabel
+            app.UnitSwitchLabel = uilabel(app.AverageTemperaturepermonthperyearTab);
+            app.UnitSwitchLabel.HorizontalAlignment = 'center';
+            app.UnitSwitchLabel.Position = [150 208 27 22];
+            app.UnitSwitchLabel.Text = 'Unit';
+
+            % Create UnitSwitch
+            app.UnitSwitch = uiswitch(app.AverageTemperaturepermonthperyearTab, 'slider');
+            app.UnitSwitch.Items = {'Celsius', 'Fahrenheit'};
+            app.UnitSwitch.ValueChangedFcn = createCallbackFcn(app, @UnitSwitchValueChanged, true);
+            app.UnitSwitch.Position = [141 229 45 20];
+            app.UnitSwitch.Value = 'Celsius';
+
             % Create StandardDeviationTab
             app.StandardDeviationTab = uitab(app.TabGroup);
             app.StandardDeviationTab.Title = 'Standard Deviation';
@@ -718,7 +615,7 @@ classdef assignment1 < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = assignment1
+        function app = assignment21
 
             % Create UIFigure and components
             createComponents(app)
