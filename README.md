@@ -13,3 +13,7 @@ o Ability to zoom around a center value, using custom MATLAB uicontrols and not 
 the user can type a year of interest (around which to zoom) and a slider which could change the zoom, keeping the year of interest centered in the plot.
 
   ![image](https://github.com/user-attachments/assets/ceb85f84-89da-49ef-b8b0-cf9243f0b7f5)
+
+Version II: The new code provides a cleaner code, more functionallities for the standard_deviation plot (text labels in the graph in order to get easily the std, 
+upper bound, lower bound and the temperature), a code for "zoom function" that centers the year and the annual temperature of it and finally a selection unit that 
+change the temperature's unit from celsius to fahrenheit.
