@@ -42,6 +42,7 @@ classdef assignment21 < matlab.apps.AppBase
 
     
     properties (Access = private)
+            %% Fahrenheit or Celsius
             dataCelsius
             dataFahrenheit
             currentUnit = 'Celsius'
@@ -56,12 +57,6 @@ classdef assignment21 < matlab.apps.AppBase
             common_ylim3
             upper_bound
             lower_bound
-            original_x3
-            original_y3
-            original_x2
-            original_y2
-            original_x
-            original_y
             isenabled3
             isenabled2
             isenabled
@@ -97,7 +92,7 @@ classdef assignment21 < matlab.apps.AppBase
                 app.annual = app.convertToFahrenheit(app.annual);
             end
         end
-        function applyZoom(~, zoomPercentage, ax, com_xlim, com_ylim, centered_year, interest_year)
+        function applyZoom(~, zoomPercentage, ax, com_xlim, com_ylim, centered_year, interest_year, interest_yeary)
             % Get current axis limits
             xLimits = com_xlim;
             yLimits = com_ylim;
@@ -112,29 +107,20 @@ classdef assignment21 < matlab.apps.AppBase
             if centered_year == true
                 % Use the centered year as the center
                 xCenter = interest_year;
-                yCenter = (yLimits(2) + yLimits(1)) / 2;
-    
-                % Calculate the new limits ensuring the second element is greater than the first
-                newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
-                newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
-    
-                % Set the new axis limits
-                ax.XLim = newXLim;
-                ax.YLim = newYLim;
+                yCenter = interest_yeary;
             else
                 % Use the centered year as the center
                 xCenter = (xLimits(2) + xLimits(1)) / 2;
                 yCenter = (yLimits(2) + yLimits(1)) / 2;
-    
-                % Calculate the new limits ensuring the second element is greater than the first
+                
+            end
+            % Calculate the new limits ensuring the second element is greater than the first
                 newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
                 newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
     
                 % Set the new axis limits
                 ax.XLim = newXLim;
                 ax.YLim = newYLim;
-            end
-            
             
             % Ensure new limits do not exceed original limits
             if newXLim(1) < com_xlim(1)
@@ -144,6 +130,38 @@ classdef assignment21 < matlab.apps.AppBase
                 ax.YLim = com_ylim;
             end
             
+        end
+        function updateMousePosition(app, ~, ~)
+            % Get current mouse position
+            currentPoint = app.UIAxes3.CurrentPoint;
+            mouseX = currentPoint(1,1);
+            mouseY = currentPoint(1,2);
+            
+            % Get plot limits
+            xLimits = get(app.UIAxes3, 'XLim');
+            yLimits = get(app.UIAxes3, 'YLim');
+            
+            % Check if the mouse is inside the plot area
+            if mouseX >= xLimits(1) && mouseX <= xLimits(2) && mouseY >= yLimits(1) && mouseY <= yLimits(2)
+                % Find the closest year in the data based on mouseX
+                [~, index] = min(abs(app.year - mouseX));
+                selectedYear = app.year(index);
+                selectedTemperature = app.annual(index);
+                upper_bound_selected = app.upper_bound(index);
+                lower_bound_selected = app.lower_bound(index);
+
+                % Clear existing text annotations
+                delete(findall(app.UIAxes3, 'Type', 'text'));
+                
+                % Display the information on the plot
+                text(app.UIAxes3, selectedYear, selectedTemperature, ...
+                    sprintf('Year: %d\nTemp: %.2f\nRange: %.2f - %.2f', ...
+                    selectedYear, selectedTemperature, upper_bound_selected, lower_bound_selected), ...
+                    'BackgroundColor', 'White', 'EdgeColor', 'blue');
+            else
+                % If mouse is outside, clear text annotations (optional)
+                delete(findall(app.UIAxes3, 'Type', 'text'));
+            end
         end
     end
     
@@ -157,10 +175,7 @@ classdef assignment21 < matlab.apps.AppBase
               app.dataCelsius = data{:, 4:15};
               app.annual = data.Annual;
               app.year = data.Year;
-              % Precompute Fahrenheit values if needed
               app.dataFahrenheit = app.convertToFahrenheit(app.dataCelsius);
-            
-              % Example: Set default UI state
               app.SelectMonthDropDown.Value = 'January';
               
         end
@@ -187,6 +202,7 @@ classdef assignment21 < matlab.apps.AppBase
         % Button pushed function: LoadDataButton_2
         function LoadDataButton_2Pushed(app, event)
             %% Find the average
+           app.startupFcn();
            average_per_year = mean(app.getData, 2);
            plot(app.UIAxes2,app.year,average_per_year);
            xlabel(app.UIAxes2,'Year');
@@ -234,41 +250,9 @@ classdef assignment21 < matlab.apps.AppBase
            app.UIAxes3.Toolbar.Visible = 'off'; 
            app.common_ylim3 = get(app.UIAxes3, 'YLim');
            app.common_xlim3 = get(app.UIAxes3, 'XLim');
-%            % Get current mouse position
-%         currentPoint = app.UIAxes.CurrentPoint;
-%         mouseX = currentPoint(1,1);
-%         mouseY = currentPoint(1,2);
-%         [~, index] = min(abs(app.year - mouseX));
-%         selectedYear = app.year(index);
-%         selectedTemperature = app.annual(index);
-%         % Calculate upper and lower bounds for the selected year
-% upper_bound_selected = app.annual(index) + std_per_year(index);
-% lower_bound_selected = app.annual(index) - std_per_year(index);
-% 
-% % Display the range (mean ± 1 standard deviation) for the selected year
-% 
-%         set(app.YearEditField, 'Value', int32(selectedYear))
-%         set(app.TemperatureEditField, 'Value', selectedTemperature)
-%         range_text = sprintf('%.2f - %.2f', upper_bound_selected, lower_bound_selected);
-%         set(app.RangeEditField, 'Value', range_text);
-% 
-%         % % Extract X coordinate (representing year)
-%         % 
-%         % 
-%         % % Find the closest year in the data based on mouseX
-%         % [~, index] = min(abs(app.year - mouseX));
-%         % selectedYear = app.year(index);
-%         % selectedTemperature = app.(index);
-%         % if isInAxes
-%         %         set(app.YearEditField, 'Value',...
-%         %             sprintf('%.2f', selectedYear))
-%         %         set(app.TemperatureEditField, 'Value',...
-%         %             sprintf('%.2f', selectedTemperature))
-%         %         set(app.RangeEditField, 'Value',...
-%         %             sprintf('%.2f - %.2f', selectedYear))
-%         % else
-%         %         set(app.CurrentPositionEditField, 'Value', '')
-%         % end
+           
+           % Set the WindowButtonMotionFcn callback to update mouse position
+           app.UIFigure.WindowButtonMotionFcn = @(src, event) updateMousePosition(app, src, event);
         end
 
         % Button pushed function: FindYearButton_2
@@ -297,7 +281,7 @@ classdef assignment21 < matlab.apps.AppBase
         function ZoomSlider_2ValueChanging(app, event)
             zoomPercentage = event.Value;
             if app.isenabled2
-                app.applyZoom(zoomPercentage, app.UIAxes2, app.common_xlim2, app.common_ylim2, true, app.YearEditField_2.Value);
+                app.applyZoom(zoomPercentage, app.UIAxes2, app.common_xlim2, app.common_ylim2, true, app.YearEditField_2.Value, interp1(app.year, mean(app.getData, 2), app.YearEditField_2.Value));
             else
                 app.applyZoom(zoomPercentage, app.UIAxes2, app.common_xlim2, app.common_ylim2, false);
             end
@@ -306,7 +290,6 @@ classdef assignment21 < matlab.apps.AppBase
         % Button pushed function: ResetFigureButton_3
         function ResetFigureButton_3Pushed(app, event)
             app.LoadDataButton_3Pushed();
-            app.isenabled3 = false;
         end
 
         % Button pushed function: FindYearButton_3
@@ -322,41 +305,18 @@ classdef assignment21 < matlab.apps.AppBase
                         app.common_xlim3 = [app.year(i-1), app.year(i+1)]; % Set x-axis limits to min and max of original signal 
                     end 
                     set(app.UIAxes3, 'XLim', app.common_xlim3);
-                    app.original_x3 = get(app.UIAxes3,'XLim');
-                    app.original_y3 = get(app.UIAxes3,'YLim');
                 end
             end
         end
 
         % Value changing function: ZoomSlider_3
         function ZoomSlider_3ValueChanging(app, event)
-%             zoomPercentage = event.Value;
-%             % Get current axis limits
-%             xLimits = app.common_xlim3;
-%             yLimits = app.common_ylim3;
-%             % Calculate the current range
-%             xRange = xLimits(2) - xLimits(1);
-%             yRange = yLimits(2) - yLimits(1);
-%             % Calculate the new axis limits
-%             newXRange = xRange / zoomPercentage;
-%             newYRange = yRange / zoomPercentage;
-%             % Calculate the center of the current limits
-%             xCenter = (xLimits(2) + xLimits(1)) / 2;
-%             yCenter = (yLimits(2) + yLimits(1)) / 2;
-%             % Calculate the new limits ensuring the second element is greater than the first
-%             newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
-%             newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
-%             % Set the new axis limits centered around the center
-%             app.UIAxes3.XLim = newXLim;
-%             app.UIAxes3.YLim = newYLim;
             zoomPercentage = event.Value;
-            app.applyZoom(zoomPercentage, app.UIAxes3, app.common_xlim3, app.common_ylim3, app.YearEditField_3.Value);
-
-            if zoomPercentage == 0
-                if app.isenabled3
-                    set(app.UIAxes3, 'XLim', app.original_x3);
-                    set(app.UIAxes3, 'YLim', app.original_y3);
-                end
+            if app.isenabled3
+                std_per_year = std(app.getData,0,2);
+                app.applyZoom(zoomPercentage, app.UIAxes3, app.common_xlim3, app.common_ylim3, true, app.YearEditField_3.Value, interp1(app.year, std_per_year, app.YearEditField.Value));
+            else
+                app.applyZoom(zoomPercentage, app.UIAxes3, app.common_xlim3, app.common_ylim3, false);
             end
             
         end
@@ -380,8 +340,6 @@ classdef assignment21 < matlab.apps.AppBase
                         app.common_xlim = [app.year(i-1), app.year(i+1)]; % Set x-axis limits to min and max of original signal 
                     end 
                     set(app.UIAxes, 'XLim', app.common_xlim);
-                    app.original_x = get(app.UIAxes,'XLim');
-                    app.original_y = get(app.UIAxes,'YLim');
                 end
             end
         end
@@ -389,38 +347,18 @@ classdef assignment21 < matlab.apps.AppBase
         % Button pushed function: ResetFigureButton
         function ResetFigureButtonPushed(app, event)
             app.LoadDataButtonPushed();
-            app.isenabled = false;
         end
 
         % Value changing function: ZoomSlider
         function ZoomSliderValueChanging(app, event)
-%             zoomPercentage = event.Value;
-%             % Get current axis limits
-%             xLimits = app.common_xlim;
-%             yLimits = app.common_ylim;
-%             % Calculate the current range
-%             xRange = xLimits(2) - xLimits(1);
-%             yRange = yLimits(2) - yLimits(1);
-%             % Calculate the new axis limits
-%             newXRange = xRange / zoomPercentage;
-%             newYRange = yRange / zoomPercentage;
-%             % Calculate the center of the current limits
-%             xCenter = (xLimits(2) + xLimits(1)) / 2;
-%             yCenter = (yLimits(2) + yLimits(1)) / 2;
-%             % Calculate the new limits ensuring the second element is greater than the first
-%             newXLim = [xCenter - newXRange / 2, xCenter + newXRange / 2];
-%             newYLim = [yCenter - newYRange / 2, yCenter + newYRange / 2];
-%             % Set the new axis limits centered around the center
-%             app.UIAxes.XLim = newXLim;
-%             app.UIAxes.YLim = newYLim;
-              zoomPercentage = event.Value;
-              app.applyZoom(zoomPercentage, app.UIAxes, app.common_xlim, app.common_ylim, app.YearEditField.Value);
-
-            if zoomPercentage == 0
-                if app.isenabled
-                    set(app.UIAxes, 'XLim', app.original_x);
-                    set(app.UIAxes, 'YLim', app.original_y);
-                end
+            zoomPercentage = event.Value;
+            if app.isenabled
+                selectedMonth = app.SelectMonthDropDown.Value;
+                monthIndex = app.getMonthIndex(selectedMonth);
+                data = app.getDataForCurrentUnit(monthIndex);
+                app.applyZoom(zoomPercentage, app.UIAxes, app.common_xlim, app.common_ylim, true, app.YearEditField.Value, interp1(app.year, data, app.YearEditField.Value));
+            else
+                app.applyZoom(zoomPercentage, app.UIAxes, app.common_xlim, app.common_ylim, false);
             end
         end
 
